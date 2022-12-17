@@ -40,7 +40,7 @@ from gflownet_sl.utils.graph_plot import graph_to_matrix
 NormalParameters = namedtuple('NormalParameters', ['mean', 'precision'])
 def main(args):
     wandb.init(
-        project='results_check',
+        project='vbg',
         settings=wandb.Settings(start_method='fork')
     )
     wandb.config.update(args)
