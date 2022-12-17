@@ -232,7 +232,6 @@ def main(args):
 
     # Training loop
     tau = jnp.array(1.)  # Temperature for the posterior (should be equal to 1)
-    exp_sheduler = False
     epsilon = jnp.array(0.)
     num_samples = data.shape[0]
     first_run = True
@@ -334,13 +333,9 @@ def main(args):
                         # only update epsilon if we are half way through training
                     if iteration > (args.num_iterations * args.start_to_increase_eps):
                             if not args.keep_epsilon_constant:
-                                if exp_sheduler:
-                                    epsilon = (
-                                        (1-args.min_exploration)/(jnp.exp(1)-1))*jnp.exp(vb_iters/num_vb_updates)+((1-args.min_exploration)/(1-jnp.exp(1)))
-                                else:
-                                    
-                                    epsilon = jnp.minimum(1-args.min_exploration, ((1-args.min_exploration)*2/num_vb_updates)*vb_iters)
-                            
+                                epsilon = jnp.minimum(
+                                    1-args.min_exploration,
+                                    ((1-args.min_exploration)*2/num_vb_updates)*vb_iters)
                             else:
                                 epsilon = jnp.array(0.)
             
@@ -629,7 +624,7 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
     import json
 
-    parser = ArgumentParser('GFlowNet for Strucure Learning')
+    parser = ArgumentParser('GFlowNet for Structure Learning')
 
     parser.add_argument('--num_variables', type=int, default=5,
         help='Number of variables (default: %(default)s)')
@@ -653,12 +648,10 @@ if __name__ == '__main__':
         help='Maximum number of subsequences for multistep loss (default: %(default)s)')
     parser.add_argument('--prior', type=json.loads, default='{}',
         help='Arguments of the prior for the score.')
-
     parser.add_argument('--replay_capacity', type=int, default=100_000,
         help='Capacity of the replay buffer (default: %(default)s)')
     parser.add_argument('--replay_prioritized', action='store_true',
         help='Use Prioritized Experience Replay')
-
     parser.add_argument('--lr', type=float, default=1e-5,
         help='Learning rate (default: %(default)s)')
     parser.add_argument('--delta', type=float, default=1.,
@@ -675,10 +668,6 @@ if __name__ == '__main__':
         help='Minimum value of epsilon-exploration (default: %(default)s)')
     parser.add_argument('--log_every', type=int, default=50,
         help='Frequency for logging (default: %(default)s)')
-
-    parser.add_argument('--log_every_vb', type=int, default=50,
-        help='Frequency for logging (default: %(default)s)')
-
     parser.add_argument('--start_to_increase_eps', type=float, default=0.5,
         help='the fraction of training iters to start increasing epsilon')
         
@@ -694,12 +683,6 @@ if __name__ == '__main__':
                         help='use variational bayes setup to get parameter updates')
     parser.add_argument('--reset', default=False, action='store_true',
                         help='reset optimiser at each parameter update')
-
-    parser.add_argument('--use_old_fn', default=False, action='store_true',
-                        help='use old fn for debugging purposes')
-
-    parser.add_argument('--omit_prior_lingauss', default=False, action='store_true',
-                        help='delta score lingauss without prior for debugging')
         
     parser.add_argument('--plot_vb_iter', default=False, action='store_true',
                         help='plot loss of gflownet update within one variational bayes mean update')
@@ -716,6 +699,8 @@ if __name__ == '__main__':
     
     parser.add_argument('--obs_noise', type=float, default=1.0,
                         help='likelihood variance in approximate posterior')
+    parser.add_argument('--true_obs_noise', type=float, default=0.1,
+                        help='true likelihood variance, data generated with this variance')
     parser.add_argument('--prior_mean', type=int, default=0,
                         help='prior is a gaussian. Mean of that gaussian')
     parser.add_argument('--prior_var', type=int, default=1,
@@ -731,8 +716,6 @@ if __name__ == '__main__':
     parser.add_argument('--keep_epsilon_constant', default=False,
                         action='store_true',
                         help='do not increase epsilon over time')
-    parser.add_argument('--true_obs_noise', type=float, default=1.0,
-                        help='true likelihood variance')
 
     parser.add_argument("--benchmarking", default=False, action='store_true',
                         help='use file saving locations for benchmarking')
