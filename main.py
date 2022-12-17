@@ -516,7 +516,7 @@ def main(args):
                                                  edge_params.mean,
                                                  edge_cov, shape=(args.num_samples_posterior,args.num_variables))
 
-    log_like = -1*LL(posterior, posterior_theta, data.to_numpy(), sigma=args.obs_noise)
+    log_like = -1*LL(posterior, posterior_theta, data.to_numpy(), sigma=np.sqrt(args.obs_noise))
     
     wandb.run.summary.update({"negative log like": log_like})
     if args.benchmarking:
