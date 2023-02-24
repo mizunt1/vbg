@@ -61,7 +61,7 @@ def main(args):
             num_variables=args.num_variables,
             num_edges=args.num_edges,
             loc_edges=0.0,
-            scale_edges=1.0,
+            scale_edges=2.0,
             obs_noise=args.true_obs_noise,
             rng=rng,
             block_small_theta=args.block_small_theta
