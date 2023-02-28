@@ -337,8 +337,7 @@ def main(args):
                                     1-args.min_exploration,
                                     ((1-args.min_exploration)*2/num_vb_updates)*vb_iters)
                             else:
-                                epsilon = jnp.array(0.)
-            
+                                epsilon = jnp.array(0.)            
                 else:
                     epsilon = jnp.minimum(1. - args.min_exploration, iteration*2 / args.num_iterations)
 
@@ -504,13 +503,19 @@ def main(args):
     )
     posterior = (orders >= 0).astype(np.int_)
     if args.full_cov:
-        edge_cov = jax.vmap(jnp.linalg.inv, in_axes=2, out_axes=0)(edge_params.precision)
+        edge_cov = jax.vmap(jnp.linalg.inv, in_axes=-1, out_axes=-1)(edge_params.precision)
     else: 
         edge_cov = jnp.linalg.inv(edge_params.precision)
-    posterior_theta = random.multivariate_normal(key,
-                                                 edge_params.mean,
-                                                 edge_cov, shape=(args.num_samples_posterior,args.num_variables))
+    if args.full_cov:
+        posterior_theta = jax.vmap(
+            random.multivariate_normal, in_axes=(None, -1, -1, None),  out_axes=(-1))(key,
+                                                                                edge_params.mean,
+                                                                                edge_cov, (args.num_samples_posterior,))
+    else:
 
+        posterior_theta = random.multivariate_normal(key,
+                                                     edge_params.mean,
+                                                     edge_cov, shape=(args.num_samples_posterior,args.num_variables))
     log_like = -1*LL(posterior, posterior_theta, data.to_numpy(), sigma=np.sqrt(args.obs_noise))
     
     wandb.run.summary.update({"negative log like": log_like})
