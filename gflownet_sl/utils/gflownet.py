@@ -94,7 +94,6 @@ def compute_delta_score_lingauss(adjacency, action, params, prior, XTX, obs_nois
     term1 = -2 * params.mean[source, target] * XTX[source, target]
     is_not_zero = params.precision == 0  
     var = (1/params.precision)*is_not_zero 
-
     moment_2 = var[source, target] + params.mean[source, target] ** 2
     term2 = XTX[source, source] * moment_2
     term3 = 2 * params.mean[source, target] * jnp.vdot(
@@ -144,8 +143,8 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     g_mean = (params.mean[:,target]).squeeze(1) - ((params.mean*mask)[:,target]).squeeze(1) - prior.mean
     inv_prior_precision = jnp.linalg.inv(prior.precision)
     #KL terms
-    kl_1 = jnp.matmul(g_dash_mean, jnp.matmul(inv_prior_precision, g_dash_mean)) - jnp.matmul(g_mean, jnp.matmul(inv_prior_precision, g_mean))
-    kl_2 = jnp.trace(jnp.matmul(inv_prior_precision, g_dash_cov)) - jnp.trace(jnp.matmul(inv_prior_precision, g_cov))
+    kl_1 = jnp.matmul(g_dash_mean, jnp.matmul(prior.precision, g_dash_mean)) - jnp.matmul(g_mean, jnp.matmul(prior.precision, g_mean))
+    kl_2 = jnp.trace(jnp.matmul(prior.precision, g_dash_cov)) - jnp.trace(jnp.matmul(prior.precision, g_cov))
     kl_3 = -1*((jnp.linalg.slogdet(g_dash_cov))[1] - (jnp.linalg.slogdet(g_cov)[1]))
     kl_term = kl_weight*0.5*(kl_1 + kl_2 + kl_3)
     # prior term
@@ -223,4 +222,3 @@ def update_parameters_full(prior, graphs, X, obs_noise):
         mean = jnp.linalg.solve(precision, b)
         return NormalParameters(mean=mean, precision=precision)
     return jax.vmap(_update, in_axes=-1, out_axes=-1)(graphs, X)
-

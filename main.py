@@ -40,7 +40,7 @@ from gflownet_sl.utils.graph_plot import graph_to_matrix
 NormalParameters = namedtuple('NormalParameters', ['mean', 'precision'])
 def main(args):
     wandb.init(
-        project='vbg',
+        project='invest',
         settings=wandb.Settings(start_method='fork')
     )
     wandb.config.update(args)
@@ -61,7 +61,8 @@ def main(args):
             num_variables=args.num_variables,
             num_edges=args.num_edges,
             loc_edges=0.0,
-            scale_edges=2.0,
+            scale_edges=args.scale_edges,
+            low_edges=args.low_edges,
             obs_noise=args.true_obs_noise,
             rng=rng,
             block_small_theta=args.block_small_theta
@@ -71,10 +72,10 @@ def main(args):
             num_samples=args.num_samples,
             rng=rng
         )
-        if args.benchmarking:
-            with open(file_paths["graph"], 'rb') as f:
-                graph = pickle.load(f)
-            data = pd.read_csv(file_paths["data"], index_col=0)
+        #if args.benchmarking:
+        #    with open(file_paths["graph"], 'rb') as f:
+        #    graph = pickle.load(f)
+        #    data = pd.read_csv(file_paths["data"], index_col=0)
         plt.figure()
         plt.clf()
         annot = True
@@ -248,6 +249,7 @@ def main(args):
         num_vb_updates = 1
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
+            obs_noise = args.obs_noise
             losses = np.zeros(args.num_vb_updates)           
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
@@ -303,13 +305,13 @@ def main(args):
                     new_edge_params = update_parameters_full(prior,
                                                              posterior_samples,
                                                              data.to_numpy(),
-                                                             args.obs_noise)
+                                                             obs_noise)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
                                                         posterior_samples,
                                                         xtx,
-                                                        args.obs_noise)
+                                                        obs_noise)
 
             else:
                 edge_params = prior
@@ -379,7 +381,7 @@ def main(args):
                                 edge_params,
                                 prior,
                                 xtx,
-                                args.obs_noise,
+                                obs_noise,
                                 args.kl_weight,
                                 args.use_erdos_prior)
 
@@ -391,7 +393,7 @@ def main(args):
                                 edge_params,
                                 prior,
                                 xtx,
-                                args.obs_noise)
+                                obs_noise)
 
                     samples['rewards'][0] = diff_marg_ll
                     mean_rewards = jnp.mean(diff_marg_ll)
@@ -512,7 +514,6 @@ def main(args):
                                                                                 edge_params.mean,
                                                                                 edge_cov, (args.num_samples_posterior,))
     else:
-
         posterior_theta = random.multivariate_normal(key,
                                                      edge_params.mean,
                                                      edge_cov, shape=(args.num_samples_posterior,args.num_variables))
@@ -563,14 +564,18 @@ def main(args):
     with open(os.path.join(wandb.run.dir, 'posterior_estimate.npy'), 'wb') as f:
         np.save(f, orders)
     wandb.save('posterior_estimate.npy', policy='now')
+    with open(os.path.join(wandb.run.dir, 'posterior_estimate_thetas.npy'), 'wb') as f:
+        np.save(f, posterior_theta)
+    wandb.save('posterior_estimate_theta.npy', policy='now')
 
+    
     # Evaluate: for small enough graphs, evaluate the full posterior
     if (args.graph in ['erdos_renyi_lingauss', 'erdos_renyi_lingauss_3_nodes']) and (args.num_variables < 6):
         # Default values set by data generation
         # See `sample_erdos_renyi_linear_gaussian` above
         if args.vb:
             full_posterior = get_full_posterior(
-                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=args.obs_noise)
+                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=obs_noise)
         else:
             full_posterior = get_full_posterior(
                 data, score='bge', verbose=True, **scorer_kwargs)
@@ -588,7 +593,7 @@ def main(args):
         full_path_log_features = get_path_log_features(full_posterior)
         full_markov_log_features = get_markov_blanket_log_features(full_posterior)
         wandb.run.summary.update({
-            'posterior/full/edge': table_from_dict(full_edge_log_features),
+            'posterior/fufll/edge': table_from_dict(full_edge_log_features),
             'posterior/full/path': table_from_dict(full_path_log_features),
             'posterior/full/markov_blanket': table_from_dict(full_markov_log_features)
         })
@@ -706,6 +711,11 @@ if __name__ == '__main__':
                         help='likelihood variance in approximate posterior')
     parser.add_argument('--true_obs_noise', type=float, default=0.1,
                         help='true likelihood variance, data generated with this variance')
+    parser.add_argument('--scale_edges', type=float, default=2.0,
+                        help='upper limit for edge scale')
+    parser.add_argument('--low_edges', type=float, default=0.5,
+                        help='lower limit for edge scale')
+
     parser.add_argument('--prior_mean', type=int, default=0,
                         help='prior is a gaussian. Mean of that gaussian')
     parser.add_argument('--prior_var', type=int, default=1,

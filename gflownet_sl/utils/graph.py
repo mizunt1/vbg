@@ -91,6 +91,7 @@ def sample_erdos_renyi_linear_gaussian(
         nodes=None,
         loc_edges=0.0,
         scale_edges=1.0,
+        low_edges = 0.5,
         obs_noise=0.1,
         rng=default_rng(),
         block_small_theta=False
@@ -112,7 +113,7 @@ def sample_erdos_renyi_linear_gaussian(
         # Sample random parameters (from Normal distribution)
         if block_small_theta:
             pos_or_neg = (-1)**(rng.binomial(1, 0.5, size=(len(parents)+1,)))
-            value = rng.uniform(low=0.5, high=scale_edges, size=(len(parents)+1,))
+            value = rng.uniform(low=low_edges, high=scale_edges, size=(len(parents)+1,))
             theta = pos_or_neg*value
                                 
         else:
