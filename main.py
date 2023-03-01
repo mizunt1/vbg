@@ -78,6 +78,9 @@ def main(args):
             num_samples=args.num_samples,
             rng=rng_2
         )
+        data_test.to_csv(os.path.join(wandb.run.dir, 'data_test.csv'))
+        wandb.save('data_test.csv', policy='now')
+
                 
         #if args.benchmarking:
         #    with open(file_paths["graph"], 'rb') as f:
