@@ -40,7 +40,7 @@ from gflownet_sl.utils.graph_plot import graph_to_matrix
 NormalParameters = namedtuple('NormalParameters', ['mean', 'precision'])
 def main(args):
     wandb.init(
-        project='invest',
+        project='comparison',
         settings=wandb.Settings(start_method='fork')
     )
     wandb.config.update(args)
@@ -312,13 +312,13 @@ def main(args):
                     new_edge_params = update_parameters_full(prior,
                                                              posterior_samples,
                                                              data.to_numpy(),
-                                                             obs_noise)
+                                                             args.true_obs_noise)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
                                                         posterior_samples,
                                                         xtx,
-                                                        obs_noise)
+                                                        args.true_obs_noise)
 
             else:
                 edge_params = prior
@@ -524,7 +524,7 @@ def main(args):
         posterior_theta = random.multivariate_normal(key,
                                                      edge_params.mean,
                                                      edge_cov, shape=(args.num_samples_posterior,args.num_variables))
-    log_like = -1*LL(posterior, posterior_theta, data_test.to_numpy(), sigma=np.sqrt(args.obs_noise))
+    log_like = -1*LL(posterior, posterior_theta, data_test.to_numpy(), sigma=np.sqrt(args.true_obs_noise))
     
     wandb.run.summary.update({"negative log like": log_like})
     if args.benchmarking:
@@ -582,7 +582,7 @@ def main(args):
         # See `sample_erdos_renyi_linear_gaussian` above
         if args.vb:
             full_posterior = get_full_posterior(
-                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=obs_noise)
+                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=args.true_obs_noise)
         else:
             full_posterior = get_full_posterior(
                 data, score='bge', verbose=True, **scorer_kwargs)
