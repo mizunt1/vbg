@@ -11,4 +11,4 @@ module load python/3.7
 module load cuda/11.1/cudnn/8.0
 
 source $HOME/python_envs/causal_proj/bin/activate
-python main.py --num_samples 500 --vb --num_iterations 15 --plot_vb_iter --num_vb_updates 2000 --log_every 1 --block_small_theta --full_cov --random_init
+python main.py --num_samples 500 --vb --num_iterations 15 --plot_vb_iter --num_vb_updates 2000 --log_every 1 --block_small_theta --start_to_increase_eps 0.10 --random_init --seed 5 --true_obs_noise 0.1 --obs_noise 0.1 --full_cov --plot_cov --kl_weight 0.1
