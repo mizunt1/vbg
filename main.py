@@ -54,6 +54,7 @@ def main(args):
     start_time = time()
     # Generate samples from a graph
     rng = default_rng(args.seed)
+    rng_2 = default_rng(args.seed +1000)
     env_kwargs = dict()
     annot = True
     if args.graph == 'erdos_renyi_lingauss':
@@ -72,6 +73,12 @@ def main(args):
             num_samples=args.num_samples,
             rng=rng
         )
+        data_test = sample_from_linear_gaussian(
+            graph,
+            num_samples=args.num_samples,
+            rng=rng_2
+        )
+                
         #if args.benchmarking:
         #    with open(file_paths["graph"], 'rb') as f:
         #    graph = pickle.load(f)
@@ -517,7 +524,7 @@ def main(args):
         posterior_theta = random.multivariate_normal(key,
                                                      edge_params.mean,
                                                      edge_cov, shape=(args.num_samples_posterior,args.num_variables))
-    log_like = -1*LL(posterior, posterior_theta, data.to_numpy(), sigma=np.sqrt(args.obs_noise))
+    log_like = -1*LL(posterior, posterior_theta, data_test.to_numpy(), sigma=np.sqrt(args.obs_noise))
     
     wandb.run.summary.update({"negative log like": log_like})
     if args.benchmarking:
