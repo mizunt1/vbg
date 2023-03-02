@@ -382,16 +382,16 @@ def main(args):
                 samples, subsq_mask = replay.sample(batch_size=args.batch_size, rng=rng)
                 if args.vb:
                     if args.full_cov:
-                        diff_marg_ll, kl = jax.vmap(
+                        diff_marg_ll = jax.vmap(
                             compute_delta_score_lingauss_full, in_axes=(0,0,None,None,None,
-                                                                        None, None,None), out_axes=(0,0))(
+                                                                        None, None,None))(
                                 samples['adjacency'][0],
                                 samples['actions'][0],
                                 edge_params,
                                 prior,
                                 xtx,
                                 args.obs_noise,
-                                args.kl_weight,
+                                args.weight,
                                 args.use_erdos_prior)
 
                     else:
@@ -403,7 +403,7 @@ def main(args):
                                 prior,
                                 xtx,
                                 args.obs_noise)
-                    samples['rewards'][0] = diff_marg_ll + jnp.expand_dims(kl, 1)
+                    samples['rewards'][0] = diff_marg_ll
                     mean_rewards = jnp.mean(diff_marg_ll)
                     mean_kl = jnp.mean(kl)
                 params, state, logs = gflownet.step(
@@ -714,7 +714,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--num_vb_updates', type=int, default=2000,
                         help='number of updates to gflownet per one update of parameters in VB setup')
-    parser.add_argument('--kl_weight', type=float, default=1.0,
+    parser.add_argument('--weight', type=float, default=1.0,
                         help='amount of weighting of KL term')
     
     parser.add_argument('--obs_noise', type=float, default=1.0,

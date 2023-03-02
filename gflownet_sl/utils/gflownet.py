@@ -113,7 +113,7 @@ def compute_delta_score_lingauss(adjacency, action, params, prior, XTX, obs_nois
 
 def compute_delta_score_lingauss_full(adjacency, action, params,
                                       prior, XTX, obs_noise,
-                                      kl_weight, use_erdos_prior):
+                                      weight, use_erdos_prior):
     num_variables = params.mean.shape[0]
     source, target = divmod(action, num_variables)
     adjacency = adjacency.at[source, target].set(1)
@@ -156,10 +156,9 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     if use_erdos_prior:
         prior_score_before = erdos_renyi_prior(num_variables)[parents_before]
         prior_score_after = erdos_renyi_prior(num_variables)[parents_after]
-        return  -0.5 * (
-            kl_weight*(term1 + term2 + term3) / (obs_noise)) - kl_term + prior_score_after - prior_score_before
+        return  -0.5 * weight * ((term1 + term2 + term3) / (obs_noise)) - kl_term + prior_score_after - prior_score_before
     else:
-        return  (-0.5 * (kl_weight*(term1 + term2 + term3) / (obs_noise)) , - kl_term )
+        return  weight * (-0.5 * (kl_weight*(term1 + term2 + term3) / (obs_noise))  - kl_term)
 
 
 
