@@ -382,9 +382,9 @@ def main(args):
                 samples, subsq_mask = replay.sample(batch_size=args.batch_size, rng=rng)
                 if args.vb:
                     if args.full_cov:
-                        diff_marg_ll = jax.vmap(
+                        diff_marg_ll, kl = jax.vmap(
                             compute_delta_score_lingauss_full, in_axes=(0,0,None,None,None,
-                                                                        None, None,None))(
+                                                                        None, None,None), out_axes=(0,0))(
                                 samples['adjacency'][0],
                                 samples['actions'][0],
                                 edge_params,
@@ -404,8 +404,9 @@ def main(args):
                                 xtx,
                                 args.obs_noise)
 
-                    samples['rewards'][0] = diff_marg_ll
+                    samples['rewards'][0] = diff_marg_ll + kl
                     mean_rewards = jnp.mean(diff_marg_ll)
+                    mean_kl = jnp.mean(kl)
                 params, state, logs = gflownet.step(
                     params,
                     gflownet.target_params,
@@ -426,7 +427,8 @@ def main(args):
                                         'delta mean': diff_mean,
                                         'delta_prec': diff_prec,
                                         'eps': epsilon,
-                                        'mean reward': mean_rewards})
+                                        'mean delta': mean_rewards,
+                                        'mean kl': mean_kl})
 
                 replay.update_priorities(samples, logs['error'])
             if (iteration + 1) % (args.log_every * 10) == 0:
