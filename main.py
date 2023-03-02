@@ -40,7 +40,7 @@ from gflownet_sl.utils.graph_plot import graph_to_matrix
 NormalParameters = namedtuple('NormalParameters', ['mean', 'precision'])
 def main(args):
     wandb.init(
-        project='invest',
+        project='weighting',
         settings=wandb.Settings(start_method='fork')
     )
     wandb.config.update(args)
@@ -259,7 +259,6 @@ def main(args):
         num_vb_updates = 1
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
-            obs_noise = args.obs_noise
             losses = np.zeros(args.num_vb_updates)           
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
@@ -315,13 +314,13 @@ def main(args):
                     new_edge_params = update_parameters_full(prior,
                                                              posterior_samples,
                                                              data.to_numpy(),
-                                                             obs_noise)
+                                                             args.obs_noise)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
                                                         posterior_samples,
                                                         xtx,
-                                                        obs_noise)
+                                                        args.obs_noise)
 
             else:
                 edge_params = prior
@@ -391,7 +390,7 @@ def main(args):
                                 edge_params,
                                 prior,
                                 xtx,
-                                obs_noise,
+                                args.obs_noise,
                                 args.kl_weight,
                                 args.use_erdos_prior)
 
@@ -403,7 +402,7 @@ def main(args):
                                 edge_params,
                                 prior,
                                 xtx,
-                                obs_noise)
+                                args.obs_noise)
 
                     samples['rewards'][0] = diff_marg_ll
                     mean_rewards = jnp.mean(diff_marg_ll)
@@ -585,7 +584,7 @@ def main(args):
         # See `sample_erdos_renyi_linear_gaussian` above
         if args.vb:
             full_posterior = get_full_posterior(
-                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=obs_noise)
+                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=args.obs_noise)
         else:
             full_posterior = get_full_posterior(
                 data, score='bge', verbose=True, **scorer_kwargs)

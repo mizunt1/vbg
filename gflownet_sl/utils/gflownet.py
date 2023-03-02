@@ -146,7 +146,7 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     kl_1 = jnp.matmul(g_dash_mean, jnp.matmul(prior.precision, g_dash_mean)) - jnp.matmul(g_mean, jnp.matmul(prior.precision, g_mean))
     kl_2 = jnp.trace(jnp.matmul(prior.precision, g_dash_cov)) - jnp.trace(jnp.matmul(prior.precision, g_cov))
     kl_3 = -1*((jnp.linalg.slogdet(g_dash_cov))[1] - (jnp.linalg.slogdet(g_cov)[1]))
-    kl_term = kl_weight*0.5*(kl_1 + kl_2 + kl_3)
+    kl_term = 0.5*(kl_1 + kl_2 + kl_3)
     # prior term
     # Key before adding the new source node
     parents_before = (jnp.sum(adjacency[:,target])).astype(int)
@@ -157,10 +157,10 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
         prior_score_before = erdos_renyi_prior(num_variables)[parents_before]
         prior_score_after = erdos_renyi_prior(num_variables)[parents_after]
         return  -0.5 * (
-            (term1 + term2 + term3) / (obs_noise)) - kl_term + prior_score_after - prior_score_before
+            kl_weight*(term1 + term2 + term3) / (obs_noise)) - kl_term + prior_score_after - prior_score_before
     else:
         return  -0.5 * (
-            (term1 + term2 + term3) / (obs_noise)) - kl_term 
+            kl_weight*(term1 + term2 + term3) / (obs_noise)) - kl_term 
 
 
 
