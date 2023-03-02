@@ -403,7 +403,7 @@ def main(args):
                                 prior,
                                 xtx,
                                 args.obs_noise)
-                    samples['rewards'][0] = diff_marg_ll.squeeze(1) + jnp.expand_dims(kl, 1)
+                    samples['rewards'][0] = diff_marg_ll + jnp.expand_dims(kl, 1)
                     mean_rewards = jnp.mean(diff_marg_ll)
                     mean_kl = jnp.mean(kl)
                 params, state, logs = gflownet.step(
