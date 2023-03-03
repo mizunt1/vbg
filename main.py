@@ -499,7 +499,6 @@ def main(args):
             pbar.set_postfix(loss=f"{logs['loss']:.2f}", epsilon=f"{epsilon:.2f}")
 
     # Save final model
-    save(os.path.join(wandb.run.dir, 'model.npz'), params=params)
     if args.benchmarking:
         save(file_paths["model"], params=params)
     wandb.save('model.npz', policy='now')
