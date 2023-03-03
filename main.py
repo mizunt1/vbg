@@ -569,7 +569,7 @@ def main(args):
 
     # Save posterior estimate
     with open(os.path.join(wandb.run.dir, 'posterior_estimate.npy'), 'wb') as f:
-        np.save(f, orders)
+        np.save(f, posterior)
     wandb.save('posterior_estimate.npy', policy='now')
     with open(os.path.join(wandb.run.dir, 'posterior_estimate_thetas.npy'), 'wb') as f:
         np.save(f, posterior_theta)
