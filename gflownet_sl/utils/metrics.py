@@ -208,9 +208,9 @@ def return_file_paths(seed, result, method, base_dir=os.path.join(
         path_name_theta_params = os.path.join(base_dir, "theta_params.pkl")
         # parameters that parameterise the approximate posterior. Means, covariances etc
         # can be any python object
-        path_name_est_post_g = os.path.join(base_dir, "posterior_g.npy")
+        path_name_est_post_g = os.path.join(base_dir, "posterior_estimate.npy")
         # samples of the posterior over gs
-        path_name_est_post_theta = os.path.join(base_dir, "posterior_theta.npy")
+        path_name_est_post_theta = os.path.join(base_dir, "posterior_estimate_thetas.npy")
         # samples of the posterior over thetas
         return {"data": path_name_data, "data_test": path_name_data_test,
                 "graph": path_name_graph, "results": path_name_results,

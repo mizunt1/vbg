@@ -27,3 +27,12 @@ def graph_to_matrix(graph, num_nodes):
             theta = graph.get_cpds(child[0]).mean[n+1]
             matrix[let_num[parent]][let_num[child[0]]] = theta
     return matrix
+def get_weighted_adjacency(graph):
+    adjacency = np.zeros((len(graph), len(graph)), dtype=np.float_)
+    index = dict((node, idx) for (idx, node) in enumerate(graph.nodes))
+    for v in graph.nodes:
+        cpd = graph.get_cpds(v)
+        for u, weight in zip(cpd.evidence, cpd.mean[1:]):
+            adjacency[index[u], index[v]] = weight
+    return adjacency
+

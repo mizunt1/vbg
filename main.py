@@ -711,7 +711,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--num_vb_updates', type=int, default=2000,
                         help='number of updates to gflownet per one update of parameters in VB setup')
-    parser.add_argument('--weight', type=float, default=1.0,
+    parser.add_argument('--weight', type=float, default=0.5,
                         help='amount of weighting of KL term')
     
     parser.add_argument('--obs_noise', type=float, default=1.0,

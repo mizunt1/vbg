@@ -49,6 +49,44 @@ def pairwise_structural_hamming_distance(*, x, y):
 
     return shd
 
+def calibration(graphs, ground_truth_graph, bin_size=0.1):
+    """
+    This function gives the calibration between n sampled graphs
+    and the ground truth graph, returning the ECE score,
+    which corresponds at the difference between the
+    probability of edges in predicted graph from samples of the 
+    posterior and the ground truth graph.
+    As was done in https://arxiv.org/pdf/2205.12934.pdf
+
+    Parameters
+    ----------
+    graphs: np.array(n, d, d)
+        samples of predicted graphs from posterior as 0/1 adjacency
+        matrices.  n is number of samples, d is  number of edges
+    ground_truth_graph: np.array(d, d)
+        ground truth graph.
+    bin_size: float
+        size of a single bin. between 0 and 1.
+
+    Returns 
+    -------
+    score: float
+        ECE score
+    """
+    score = 0
+    edge_marginals = np.sum(graphs, axis=0)/(graphs.shape[0])
+    bins = np.arange(0, 1, bin_size)
+    for bin_ in bins:
+        if bin_ + bin_size == 1.0:
+            masked_graph = edge_marginals * ((edge_marginals >= bin_)  & (edge_marginals <= 1.0))
+        else:
+            masked_graph = edge_marginals * ((edge_marginals >= bin_) & (edge_marginals < (bin_ + bin_size)))
+        non_zero = masked_graph * (masked_graph != 0)
+        ground_truth_sum = np.sum(ground_truth_graph * non_zero)
+        predicted_sum = np.sum(masked_graph)
+        difference = np.abs(ground_truth_sum - predicted_sum)
+        score += difference
+    return score / ground_truth_graph.shape[0]**2
 
 def expected_shd(posterior, ground_truth):
     """Compute the Expected Structural Hamming Distance.
