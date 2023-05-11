@@ -68,10 +68,9 @@ def main(args):
             rng=rng,
             block_small_theta=args.block_small_theta
         )
-        data = sample_from_linear_gaussian_interventions(
+        data = sample_from_linear_gaussian(
             graph,
             args.num_samples,
-            np.asarray([tuple(args.intervened_nodes)[0]]),
             rng=rng
         )
         data_test = sample_from_linear_gaussian(
@@ -261,8 +260,21 @@ def main(args):
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
-            if (iteration) % args.introduce_intervention == 0:
-                current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention) + 1]])
+            if (iteration == args.num_iterations - 1):
+                # for the last iteration, use observational data
+                data = sample_from_linear_gaussian(
+                    graph,
+                    args.num_samples,
+                    rng=rng
+                )
+            elif iteration + 1 > len(tuple(args.intervened_nodes)):
+                data = sample_from_linear_gaussian(
+                    graph,
+                    args.num_samples,
+                    rng=rng
+                )
+            elif (iteration) % args.introduce_intervention == 0:
+                current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
                 # currently single interventions only 
                 data = sample_from_linear_gaussian_interventions(
                     graph,
@@ -270,15 +282,9 @@ def main(args):
                     current_intervened_nodes,
                     rng=rng
                 )
-            if iteration == args.num_iterations - 1:
-                # for the last iteration, use observational data
-                data = sample_from_linear_gaussian(
-                    graph,
-                    args.num_samples,
-                    rng=rng
-                )
-
-                xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
+            else:
+                pass
+            xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
                 gflownet.set_target(params)
