@@ -260,30 +260,41 @@ def main(args):
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
-            if (iteration == args.num_iterations - 1):
-                # for the last iteration, use observational data
-                data = sample_from_linear_gaussian(
-                    graph,
-                    args.num_samples,
-                    rng=rng
-                )
-            elif iteration + 1 > len(tuple(args.intervened_nodes)):
-                data = sample_from_linear_gaussian(
-                    graph,
-                    args.num_samples,
-                    rng=rng
-                )
-            elif (iteration) % args.introduce_intervention == 0 and args.intervened_nodes != None:
-                current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
-                # currently single interventions only 
-                data = sample_from_linear_gaussian_interventions(
-                    graph,
-                    args.num_samples,
-                    current_intervened_nodes,
-                    rng=rng
-                )
+            if args.intervened_nodes != None:
+                if (iteration == args.num_iterations - 1):
+                    # for the last iteration, use observational data
+                    data = sample_from_linear_gaussian(
+                        graph,
+                        args.num_samples,
+                        rng=rng
+                    )
+                elif iteration + 1 > len(tuple(args.intervened_nodes)):
+                    data = sample_from_linear_gaussian(
+                        graph,
+                        args.num_samples,
+                        rng=rng
+                    )
+                elif (iteration) % args.introduce_intervention == 0:
+                    current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
+                    # currently single interventions only 
+                    data = sample_from_linear_gaussian_interventions(
+                        graph,
+                        args.num_samples,
+                        current_intervened_nodes,
+                        rng=rng
+                    )
+            
+                else:
+                    pass
             else:
-                pass
+                if (iteration) % args.introduce_intervention == 0:
+                    data = sample_from_linear_gaussian(
+                        graph,
+                        args.num_samples,
+                        rng=rng
+                    )
+            
+                
             xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
