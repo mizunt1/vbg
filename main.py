@@ -22,7 +22,7 @@ from gflownet_sl.scores import BDeuScore, BGeScore
 from gflownet_sl.gflownet import GFlowNet
 from gflownet_sl.replay_buffer import ReplayBuffer
 from gflownet_sl.utils.graph import sample_erdos_renyi_linear_gaussian, sample_erdos_renyi_linear_gaussian_3_nodes
-from gflownet_sl.utils.sampling import sample_from_discrete, sample_from_linear_gaussian
+from gflownet_sl.utils.sampling import sample_from_discrete, sample_from_linear_gaussian_interventions, sample_from_linear_gaussian
 from gflownet_sl.utils.jnp_utils import get_random_actions
 from gflownet_sl.utils.io import save
 from gflownet_sl.utils.wandb_utils import slurm_infos, table_from_dict, scatter_from_dicts, return_ordered_data
@@ -68,9 +68,10 @@ def main(args):
             rng=rng,
             block_small_theta=args.block_small_theta
         )
-        data = sample_from_linear_gaussian(
-            graph,
-            num_samples=args.num_samples,
+        data, intervened_nodes = sample_from_linear_gaussian_interventions(
+           graph,
+            args.num_samples,
+            args.num_interventions,
             rng=rng
         )
         data_test = sample_from_linear_gaussian(
@@ -310,11 +311,11 @@ def main(args):
                     posterior_samples = (orders >= 0).astype(np.int_)
        
                 if args.full_cov:
-                    
                     new_edge_params = update_parameters_full(prior,
                                                              posterior_samples,
                                                              data.to_numpy(),
-                                                             args.obs_noise)
+                                                             args.obs_noise, edge_params, 
+                                                             intervened_nodes=intervened_nodes)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
@@ -384,7 +385,7 @@ def main(args):
                     if args.full_cov:
                         diff_marg_ll = jax.vmap(
                             compute_delta_score_lingauss_full, in_axes=(0,0,None,None,None,
-                                                                        None, None,None))(
+                                                                        None, None,None,None))(
                                 samples['adjacency'][0],
                                 samples['actions'][0],
                                 edge_params,
@@ -392,7 +393,8 @@ def main(args):
                                 xtx,
                                 args.obs_noise,
                                 args.weight,
-                                args.use_erdos_prior)
+                                args.use_erdos_prior,
+                                intervened_nodes)
 
                     else:
                         diff_marg_ll = jax.vmap(
@@ -512,6 +514,7 @@ def main(args):
     )
     posterior = (orders >= 0).astype(np.int_)
     if args.full_cov:
+
         edge_cov = jax.vmap(jnp.linalg.inv, in_axes=-1, out_axes=-1)(edge_params.precision)
     else: 
         edge_cov = jnp.linalg.inv(edge_params.precision)
@@ -722,7 +725,9 @@ if __name__ == '__main__':
                         help='upper limit for edge scale')
     parser.add_argument('--low_edges', type=float, default=0.5,
                         help='lower limit for edge scale')
-
+    parser.add_argument('--num_interventions', type=int, default=1,
+                        help='number of hard interventions for a graph')
+        
     parser.add_argument('--prior_mean', type=int, default=0,
                         help='prior is a gaussian. Mean of that gaussian')
     parser.add_argument('--prior_var', type=int, default=1,

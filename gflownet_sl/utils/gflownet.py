@@ -113,7 +113,7 @@ def compute_delta_score_lingauss(adjacency, action, params, prior, XTX, obs_nois
 
 def compute_delta_score_lingauss_full(adjacency, action, params,
                                       prior, XTX, obs_noise,
-                                      weight, use_erdos_prior):
+                                      weight, use_erdos_prior, intervention_nodes=None):
     num_variables = params.mean.shape[0]
     source, target = divmod(action, num_variables)
     adjacency = adjacency.at[source, target].set(1)
@@ -152,13 +152,20 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     parents_before = (jnp.sum(adjacency[:,target])).astype(int)
 
     parents_after = parents_before + 1
+
+    mask_likelihood = jax.numpy.isin(target, intervention_nodes)
+    # if intervened node is the target node, likelihood part of delta score is zero.
+    # KL terms are calculated from the current posterior of params
+    
+    likelihood = mask_likelihood*(term1 + term2 + term3)
+        
     # Key after adding the new source node
     if use_erdos_prior:
         prior_score_before = erdos_renyi_prior(num_variables)[parents_before]
         prior_score_after = erdos_renyi_prior(num_variables)[parents_after]
-        return  weight * (-0.5 * ((term1 + term2 + term3) / (obs_noise)) - kl_term + prior_score_after - prior_score_before)
+        return  weight * (-0.5 * ((likelihood) / (obs_noise)) - kl_term + prior_score_after - prior_score_before)
     else:
-        return  weight * (-0.5 * ((term1 + term2 + term3) / (obs_noise))  - kl_term)
+        return  weight * (-0.5 * ((likelihood) / (obs_noise))  - kl_term)
 
 
 
@@ -207,7 +214,7 @@ def update_parameters(params, prior, graphs, empirical_cov, obs_noise):
     mean = (prior.mean *prior.precision *w  + (term2 - term1) / obs_noise**2) / inv_variance   
     return NormalParameters(mean=mean, precision=inv_variance)
 
-def update_parameters_full(prior, graphs, X, obs_noise):
+def update_parameters_full(prior, graphs, X, obs_noise, old_params, intervened_nodes=None):
     num_graphs = graphs.shape[0]
     XTX = jnp.matmul(X.T, X)
     def _update(parents, y):
@@ -219,4 +226,17 @@ def update_parameters_full(prior, graphs, X, obs_noise):
         b = jnp.dot(prior.precision, prior.mean) + XTy_w / (obs_noise)
         mean = jnp.linalg.solve(precision, b)
         return NormalParameters(mean=mean, precision=precision)
-    return jax.vmap(_update, in_axes=-1, out_axes=-1)(graphs, X)
+    new_params = jax.vmap(_update, in_axes=-1, out_axes=-1)(graphs, X)
+    if intervened_nodes != None:
+        for node in intervened_nodes: 
+            # if node is an intervened node, dont update means for parents
+            if len(old_params.mean.shape) == 1:
+                # for first run, old params is prior so shape is different
+                mean = new_params.mean.at[:, node].set(old_params.mean)
+                precision = new_params.precision.at[:, :, node].set(old_params.precision)
+            else:
+                mean = new_params.mean.at[:, node].set(old_params.mean[:, node])
+                precision = new_params.precision.at[:, :, node].set(old_params.precision[:, :, node])
+            
+        new_params = NormalParameters(mean=mean, precision=precision)
+    return new_params
