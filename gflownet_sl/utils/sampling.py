@@ -24,12 +24,13 @@ def sample_from_linear_gaussian(model, num_samples, rng=default_rng()):
             samples[node] = rng.normal(cpd.mean[0], np.sqrt(cpd.variance), size=(num_samples,))
     return samples
 
-def sample_from_linear_gaussian_interventions(model, num_samples, num_interventions, rng=default_rng()):
+def sample_from_linear_gaussian_interventions(model, num_samples, intervened_nodes, rng=default_rng()):
     """Sample from a linear-Gaussian model using ancestral sampling."""
     num_nodes = len(list(model.nodes()))
     intervention_array = np.zeros((num_samples, num_nodes))
     intervention_range = (-2, 2)
     node_names = list(model.nodes())
+    num_interventions = len(intervened_nodes)
     intervened_nodes = rng.choice(num_nodes, size=(num_interventions), replace=False)
     intervention_values = rng.uniform(low=intervention_range[0], high=intervention_range[1], size=(num_samples, num_interventions))
     for num, i in enumerate(intervened_nodes):
@@ -49,7 +50,7 @@ def sample_from_linear_gaussian_interventions(model, num_samples, num_interventi
         else:
             samples[node] = rng.normal(cpd.mean[0], np.sqrt(cpd.variance), size=(num_samples,))
         samples[node] = samples[node] - samples[node]*intervention_mask[:,node_idx] + intervention_array[:, node_idx]
-    return samples, intervened_nodes
+    return samples
 
 def sample_from_discrete(model, num_samples, rng=default_rng(), **kwargs):
     """Sample from a discrete model using ancestral sampling."""

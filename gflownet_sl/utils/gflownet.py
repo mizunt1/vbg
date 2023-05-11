@@ -153,7 +153,7 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
 
     parents_after = parents_before + 1
 
-    mask_likelihood = jax.numpy.isin(target, intervention_nodes)
+    mask_likelihood = ~jax.numpy.isin(target, intervention_nodes)
     # if intervened node is the target node, likelihood part of delta score is zero.
     # KL terms are calculated from the current posterior of params
     

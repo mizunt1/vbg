@@ -68,10 +68,10 @@ def main(args):
             rng=rng,
             block_small_theta=args.block_small_theta
         )
-        data, intervened_nodes = sample_from_linear_gaussian_interventions(
-           graph,
+        data = sample_from_linear_gaussian_interventions(
+            graph,
             args.num_samples,
-            args.num_interventions,
+            np.asarray([tuple(args.intervened_nodes)[0]]),
             rng=rng
         )
         data_test = sample_from_linear_gaussian(
@@ -262,12 +262,22 @@ def main(args):
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
             if (iteration) % args.introduce_intervention == 0:
-                data, intervened_nodes = sample_from_linear_gaussian_interventions(
+                current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention) + 1]])
+                # currently single interventions only 
+                data = sample_from_linear_gaussian_interventions(
                     graph,
                     args.num_samples,
-                    args.num_interventions,
+                    current_intervened_nodes,
                     rng=rng
                 )
+            if iteration == args.num_iterations - 1:
+                # for the last iteration, use observational data
+                data = sample_from_linear_gaussian(
+                    graph,
+                    args.num_samples,
+                    rng=rng
+                )
+
                 xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
@@ -323,7 +333,7 @@ def main(args):
                                                              posterior_samples,
                                                              data.to_numpy(),
                                                              args.obs_noise, edge_params, 
-                                                             intervened_nodes=intervened_nodes)
+                                                             intervened_nodes=current_intervened_nodes)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
@@ -402,7 +412,7 @@ def main(args):
                                 args.obs_noise,
                                 args.weight,
                                 args.use_erdos_prior,
-                                intervened_nodes)
+                                current_intervened_nodes)
 
                     else:
                         diff_marg_ll = jax.vmap(
@@ -736,8 +746,8 @@ if __name__ == '__main__':
                         help='upper limit for edge scale')
     parser.add_argument('--low_edges', type=float, default=0.5,
                         help='lower limit for edge scale')
-    parser.add_argument('--num_interventions', type=int, default=1,
-                        help='number of hard interventions for a graph')
+    parser.add_argument('--intervened_nodes', nargs='+', type=int,
+                        help='nodes to intervene on separated by space')
         
     parser.add_argument('--prior_mean', type=int, default=0,
                         help='prior is a gaussian. Mean of that gaussian')
