@@ -261,6 +261,14 @@ def main(args):
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
+            if (iteration) % args.introduce_intervention == 0:
+                data, intervened_nodes = sample_from_linear_gaussian_interventions(
+                    graph,
+                    args.num_samples,
+                    args.num_interventions,
+                    rng=rng
+                )
+                xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
                 gflownet.set_target(params)
@@ -679,7 +687,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--batch_size', type=int, default=32,
         help='Batch size (default: %(default)s)')
-    parser.add_argument('--num_iterations', type=int, default=100_000,
+    parser.add_argument('--num_iterations', type=int, default=15,
         help='Number of iterations (default: %(default)s)')
     parser.add_argument('--prefill', type=int, default=1000,
         help='Number of iterations with a random policy to prefill '
@@ -714,6 +722,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--num_vb_updates', type=int, default=2000,
                         help='number of updates to gflownet per one update of parameters in VB setup')
+    parser.add_argument('--introduce_intervention', type=int, default=2,
+                        help='period in which one intervention is done. can be multiple nodes')
+        
     parser.add_argument('--weight', type=float, default=0.5,
                         help='amount of weighting of KL term')
     
@@ -740,6 +751,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_erdos_prior', default=False,
                         action='store_true',
                         help='whether to use erdos renyi prior over graphs')
+    
     parser.add_argument('--keep_epsilon_constant', default=False,
                         action='store_true',
                         help='do not increase epsilon over time')
