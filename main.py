@@ -273,7 +273,7 @@ def main(args):
                     args.num_samples,
                     rng=rng
                 )
-            elif (iteration) % args.introduce_intervention == 0:
+            elif (iteration) % args.introduce_intervention == 0 and args.intervened_nodes != None:
                 current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
                 # currently single interventions only 
                 data = sample_from_linear_gaussian_interventions(
@@ -752,7 +752,7 @@ if __name__ == '__main__':
                         help='upper limit for edge scale')
     parser.add_argument('--low_edges', type=float, default=0.5,
                         help='lower limit for edge scale')
-    parser.add_argument('--intervened_nodes', nargs='+', type=int,
+    parser.add_argument('--intervened_nodes', nargs='+', type=int, default=None,
                         help='nodes to intervene on separated by space')
         
     parser.add_argument('--prior_mean', type=int, default=0,
