@@ -227,7 +227,7 @@ def update_parameters_full(prior, graphs, X, obs_noise, old_params, intervened_n
         mean = jnp.linalg.solve(precision, b)
         return NormalParameters(mean=mean, precision=precision)
     new_params = jax.vmap(_update, in_axes=-1, out_axes=-1)(graphs, X)
-    if intervened_nodes != None:
+    if len(intervened_nodes) != 0:
         for node in intervened_nodes: 
             # if node is an intervened node, dont update means for parents
             if len(old_params.mean.shape) == 1:
