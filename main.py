@@ -68,10 +68,9 @@ def main(args):
             rng=rng,
             block_small_theta=args.block_small_theta
         )
-        data = sample_from_linear_gaussian_interventions(
+        data = sample_from_linear_gaussian(
             graph,
             args.num_samples,
-            np.asarray([tuple(args.intervened_nodes)[0]]),
             rng=rng
         )
         data_test = sample_from_linear_gaussian(
@@ -261,24 +260,42 @@ def main(args):
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
-            if (iteration) % args.introduce_intervention == 0:
-                current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention) + 1]])
-                # currently single interventions only 
-                data = sample_from_linear_gaussian_interventions(
-                    graph,
-                    args.num_samples,
-                    current_intervened_nodes,
-                    rng=rng
-                )
-            if iteration == args.num_iterations - 1:
-                # for the last iteration, use observational data
-                data = sample_from_linear_gaussian(
-                    graph,
-                    args.num_samples,
-                    rng=rng
-                )
-
-                xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
+            if args.intervened_nodes != None:
+                if (iteration == args.num_iterations - 1):
+                    # for the last iteration, use observational data
+                    data = sample_from_linear_gaussian(
+                        graph,
+                        args.num_samples,
+                        rng=rng
+                    )
+                elif iteration + 1 > len(tuple(args.intervened_nodes)):
+                    data = sample_from_linear_gaussian(
+                        graph,
+                        args.num_samples,
+                        rng=rng
+                    )
+                elif (iteration) % args.introduce_intervention == 0:
+                    current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
+                    # currently single interventions only 
+                    data = sample_from_linear_gaussian_interventions(
+                        graph,
+                        args.num_samples,
+                        current_intervened_nodes,
+                        rng=rng
+                    )
+            
+                else:
+                    pass
+            else:
+                if (iteration) % args.introduce_intervention == 0:
+                    data = sample_from_linear_gaussian(
+                        graph,
+                        args.num_samples,
+                        rng=rng
+                    )
+            
+                
+            xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
                 gflownet.set_target(params)
@@ -746,7 +763,7 @@ if __name__ == '__main__':
                         help='upper limit for edge scale')
     parser.add_argument('--low_edges', type=float, default=0.5,
                         help='lower limit for edge scale')
-    parser.add_argument('--intervened_nodes', nargs='+', type=int,
+    parser.add_argument('--intervened_nodes', nargs='+', type=int, default=None,
                         help='nodes to intervene on separated by space')
         
     parser.add_argument('--prior_mean', type=int, default=0,
