@@ -55,8 +55,13 @@ def main(args):
     # Generate samples from a graph
     rng = default_rng(args.seed)
     rng_2 = default_rng(args.seed +1000)
+    key = random.PRNGKey(args.seed)
     env_kwargs = dict()
     annot = True
+    if args.hetero_noise: 
+        obs_noise = random.uniform(key, minval=0.05, maxval=0.6, shape=(args.num_variables,))
+    else:
+        obs_noise = args.true_obs_noise
     if args.graph == 'erdos_renyi_lingauss':
         graph = sample_erdos_renyi_linear_gaussian(
             num_variables=args.num_variables,
@@ -64,7 +69,7 @@ def main(args):
             loc_edges=0.0,
             scale_edges=args.scale_edges,
             low_edges=args.low_edges,
-            obs_noise=args.true_obs_noise,
+            obs_noise=obs_noise,
             rng=rng,
             block_small_theta=args.block_small_theta
         )
@@ -212,7 +217,7 @@ def main(args):
         # int(0.6 * args.num_iterations): 0.05,
         # int(0.8 * args.num_iterations): 0.01
     })
-    key = random.PRNGKey(args.seed)
+
     gflownet = GFlowNet(
         optimizer=optax.adam(scheduler),
         delta=args.delta,
@@ -272,7 +277,7 @@ def main(args):
 
                 elif (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
                     current_intervened_nodes = np.asarray(
-                        [tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
+                        [tuple(args.intervened_nodes)[data_introduced]])
                     # currently single interventions only 
                     data = sample_from_linear_gaussian_interventions(
                         graph,
@@ -349,14 +354,14 @@ def main(args):
                     new_edge_params = update_parameters_full(prior,
                                                              posterior_samples,
                                                              data.to_numpy(),
-                                                             args.obs_noise, edge_params, 
+                                                             obs_noise, edge_params, 
                                                              intervened_nodes=current_intervened_nodes)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
                                                         posterior_samples,
                                                         xtx,
-                                                        args.obs_noise)
+                                                        obs_noise)
 
             else:
                 edge_params = prior
@@ -426,7 +431,7 @@ def main(args):
                                 edge_params,
                                 prior,
                                 xtx,
-                                args.obs_noise,
+                                obs_noise,
                                 args.weight,
                                 args.use_erdos_prior,
                                 current_intervened_nodes)
@@ -439,7 +444,7 @@ def main(args):
                                 edge_params,
                                 prior,
                                 xtx,
-                                args.obs_noise)
+                                obs_noise)
                     samples['rewards'][0] = diff_marg_ll
                     mean_rewards = jnp.mean(diff_marg_ll)
                 params, state, logs = gflownet.step(
@@ -559,10 +564,10 @@ def main(args):
                                                                                 edge_params.mean,
                                                                                 edge_cov, (args.num_samples_posterior,))
     else:
-        posterior_theta = random.multivariate_normal(key,
+        posterior_theta = rng.random.multivariate_normal(key,
                                                      edge_params.mean,
                                                      edge_cov, shape=(args.num_samples_posterior,args.num_variables))
-    log_like = -1*LL(posterior, posterior_theta, data_test.to_numpy(), sigma=np.sqrt(args.obs_noise))
+    log_like = -1*LL(posterior, posterior_theta, data_test.to_numpy(), obs_noise)
     
     wandb.run.summary.update({"negative log like": log_like})
     if args.benchmarking:
@@ -620,7 +625,7 @@ def main(args):
         # See `sample_erdos_renyi_linear_gaussian` above
         if args.vb:
             full_posterior = get_full_posterior(
-                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=args.obs_noise)
+                data, score='lingauss', verbose=True, prior_mean=0., prior_scale=1., obs_scale=obs_noise)
         else:
             full_posterior = get_full_posterior(
                 data, score='bge', verbose=True, **scorer_kwargs)
@@ -754,6 +759,8 @@ if __name__ == '__main__':
         
     parser.add_argument('--weight', type=float, default=0.5,
                         help='amount of weighting of KL term')
+    parser.add_argument('--hetero_noise', default=False, action='store_true',
+                        help='whether to have heterogeneious noise')
     
     parser.add_argument('--obs_noise', type=float, default=1.0,
                         help='likelihood variance in approximate posterior')
