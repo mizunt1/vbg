@@ -245,6 +245,7 @@ def main(args):
     tau = jnp.array(1.)  # Temperature for the posterior (should be equal to 1)
     epsilon = jnp.array(0.)
     num_samples = data.shape[0]
+    data_introduced = 0
     first_run = True
     xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
     if args.full_cov:
@@ -268,14 +269,10 @@ def main(args):
                         args.num_samples,
                         rng=rng
                     )
-                elif iteration + 1 > len(tuple(args.intervened_nodes)):
-                    data = sample_from_linear_gaussian(
-                        graph,
-                        args.num_samples,
-                        rng=rng
-                    )
-                elif (iteration) % args.introduce_intervention == 0:
-                    current_intervened_nodes = np.asarray([tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
+
+                elif (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
+                    current_intervened_nodes = np.asarray(
+                        [tuple(args.intervened_nodes)[(iteration //args.introduce_intervention)]])
                     # currently single interventions only 
                     data = sample_from_linear_gaussian_interventions(
                         graph,
@@ -283,16 +280,19 @@ def main(args):
                         current_intervened_nodes,
                         rng=rng
                     )
+                    data_introduced += 1
             
                 else:
                     pass
             else:
-                if (iteration) % args.introduce_intervention == 0:
+                current_intervened_nodes = np.asarray([])
+                if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
                     data = sample_from_linear_gaussian(
                         graph,
                         args.num_samples,
                         rng=rng
                     )
+                    data_introduced += 1
             
                 
             xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
@@ -765,7 +765,9 @@ if __name__ == '__main__':
                         help='lower limit for edge scale')
     parser.add_argument('--intervened_nodes', nargs='+', type=int, default=None,
                         help='nodes to intervene on separated by space')
-        
+    parser.add_argument('--num_data_rounds', type=int, default=3,
+                        help='number of rounds of introducing data')
+
     parser.add_argument('--prior_mean', type=int, default=0,
                         help='prior is a gaussian. Mean of that gaussian')
     parser.add_argument('--prior_var', type=int, default=1,
