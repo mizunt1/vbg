@@ -107,7 +107,7 @@ def sample_erdos_renyi_linear_gaussian(
     )
     # Create the model parameters
     factors = []
-    for node in graph.nodes:
+    for node, noise in zip(graph.nodes, obs_noise):
         parents = list(graph.predecessors(node))
 
         # Sample random parameters (from Normal distribution)
@@ -121,7 +121,7 @@ def sample_erdos_renyi_linear_gaussian(
         theta[0] = 0.  # There is no bias term
 
         # Create factor
-        factor = LinearGaussianCPD(node, theta, obs_noise, parents)
+        factor = LinearGaussianCPD(node, theta, noise, parents)
         factors.append(factor)
 
     graph.add_cpds(*factors)
@@ -189,5 +189,3 @@ if __name__ == '__main__':
     mb_graph = get_markov_blanket_graph(graph)
     print(mb_graph.edges())
 
-    graph = sample_erdos_renyi_linear_gaussian(5, num_edges=2, nodes='ABCDE')
-    print(graph.edges)

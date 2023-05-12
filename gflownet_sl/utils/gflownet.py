@@ -112,10 +112,11 @@ def compute_delta_score_lingauss(adjacency, action, params, prior, XTX, obs_nois
     
 
 def compute_delta_score_lingauss_full(adjacency, action, params,
-                                      prior, XTX, obs_noise,
+                                      prior, XTX, obs_noises,
                                       weight, use_erdos_prior, intervention_nodes=None):
     num_variables = params.mean.shape[0]
     source, target = divmod(action, num_variables)
+    obs_noise = obs_noises[target]
     adjacency = adjacency.at[source, target].set(1)
     precision = params.precision[:,:,target][:,:,0]
     # masking covariance terms for R(G)
@@ -214,10 +215,10 @@ def update_parameters(params, prior, graphs, empirical_cov, obs_noise):
     mean = (prior.mean *prior.precision *w  + (term2 - term1) / obs_noise**2) / inv_variance   
     return NormalParameters(mean=mean, precision=inv_variance)
 
-def update_parameters_full(prior, graphs, X, obs_noise, old_params, intervened_nodes=None):
+def update_parameters_full(prior, graphs, X, obs_noises, old_params, intervened_nodes=None):
     num_graphs = graphs.shape[0]
     XTX = jnp.matmul(X.T, X)
-    def _update(parents, y):
+    def _update(parents, y, obs_noise):
         # This is equivalent to Bayesian Linear Regression, but where the
         # inputs are weighted by the edge marginals.
         XTX_w = jnp.matmul(parents.T, parents) * XTX / num_graphs
@@ -226,7 +227,7 @@ def update_parameters_full(prior, graphs, X, obs_noise, old_params, intervened_n
         b = jnp.dot(prior.precision, prior.mean) + XTy_w / (obs_noise)
         mean = jnp.linalg.solve(precision, b)
         return NormalParameters(mean=mean, precision=precision)
-    new_params = jax.vmap(_update, in_axes=-1, out_axes=-1)(graphs, X)
+    new_params = jax.vmap(_update, in_axes=(-1, -1, 0), out_axes=-1)(graphs, X, obs_noises)
     if len(intervened_nodes) != 0:
         for node in intervened_nodes: 
             # if node is an intervened node, dont update means for parents
