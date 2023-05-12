@@ -266,7 +266,7 @@ def main(args):
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
-            if args.intervened_nodes != None:
+            if args.int_nodes != None:
                 if (iteration == args.num_iterations - 1):
                     # for the last iteration, use observational data
                     data = sample_from_linear_gaussian(
@@ -277,7 +277,7 @@ def main(args):
 
                 elif (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
                     current_intervened_nodes = np.asarray(
-                        [tuple(args.intervened_nodes)[data_introduced]])
+                        [tuple(args.int_nodes)[data_introduced]])
                     # currently single interventions only 
                     data = sample_from_linear_gaussian_interventions(
                         graph,
@@ -567,6 +567,7 @@ def main(args):
         posterior_theta = rng.random.multivariate_normal(key,
                                                      edge_params.mean,
                                                      edge_cov, shape=(args.num_samples_posterior,args.num_variables))
+        
     log_like = -1*LL(posterior, posterior_theta, data_test.to_numpy(), obs_noise)
     
     wandb.run.summary.update({"negative log like": log_like})
@@ -770,7 +771,7 @@ if __name__ == '__main__':
                         help='upper limit for edge scale')
     parser.add_argument('--low_edges', type=float, default=0.5,
                         help='lower limit for edge scale')
-    parser.add_argument('--intervened_nodes', nargs='+', type=int, default=None,
+    parser.add_argument('--int_nodes', nargs='+', type=int, default=None,
                         help='nodes to intervene on separated by space')
     parser.add_argument('--num_data_rounds', type=int, default=3,
                         help='number of rounds of introducing data')

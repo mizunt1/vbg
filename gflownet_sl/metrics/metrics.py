@@ -263,7 +263,6 @@ def LL(gs, thetas, data, sigma):
     """
     log_likelihoods = []
     num_graphs, d, _ = gs.shape
-
     if isinstance(sigma, float):
         for g, theta in zip(gs, thetas):
             W = np.multiply(g, theta)
@@ -272,7 +271,7 @@ def LL(gs, thetas, data, sigma):
     else:
         for g, theta, sig in zip(gs, thetas, sigma):
             W = np.multiply(g, theta)
-            log_likelihood = log_likelihood_per_g(data, W, sig)
+            log_likelihood = log_likelihood_per_g(data, W, sigma)
             log_likelihoods.append(log_likelihood) 
     
     log_expected_likelihood = logsumexp(np.array(log_likelihoods)) - np.log(len(log_likelihoods))
