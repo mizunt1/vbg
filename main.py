@@ -461,13 +461,24 @@ def main(args):
                     losses[vb_iters] = logs['loss']
                     if args.plot_vb_iter: 
                         if (vb_iters+1) % (args.log_every) == 0:
+                            gt_adjacency = nx.to_numpy_array(graph, weight=None)
+                            edge_cov = jax.vmap(jnp.linalg.inv, in_axes=-1, out_axes=-1)(edge_params.precision)
+                            mean_shd = expected_shd(posterior_samples, gt_adjacency)
+                            posterior_theta = rng.random.multivariate_normal(key,
+                                                                             edge_params.mean,
+                                                                             edge_cov, shape=(args.num_samples_posterior,args.num_variables))
+                            log_like = -1*LL(posterior_samples, posterior_theta, data_test.to_numpy(), obs_noise)
+
                             wandb.log(
                                        {'vb iter loss': logs['loss'],
                                         'vb iter step': (iteration+1)*vb_iters,
                                         'delta mean': diff_mean,
                                         'delta_prec': diff_prec,
                                         'eps': epsilon,
-                                        'mean delta': mean_rewards})
+                                        'mean delta': mean_rewards,
+                                        'mean shd': mean_shd,
+                                        'log_like': log_like,
+                                       })
 
                 replay.update_priorities(samples, logs['error'])
             if (iteration + 1) % (args.log_every * 10) == 0:
