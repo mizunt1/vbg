@@ -267,7 +267,7 @@ def main(args):
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
             if args.int_nodes != None:
-                if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
+                if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds and iteration > args.obs_start:
                     current_intervened_nodes = np.asarray(
                         [tuple(args.int_nodes)[data_introduced]])
                     # currently single interventions only 
@@ -722,6 +722,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--batch_size', type=int, default=32,
         help='Batch size (default: %(default)s)')
+    parser.add_argument('--obs_start', type=int, default=5,
+        help='startoff')
+        
     parser.add_argument('--num_iterations', type=int, default=15,
         help='Number of iterations (default: %(default)s)')
     parser.add_argument('--prefill', type=int, default=1000,
