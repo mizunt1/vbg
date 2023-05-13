@@ -267,15 +267,7 @@ def main(args):
         for iteration in pbar:
             losses = np.zeros(args.num_vb_updates)           
             if args.int_nodes != None:
-                if (iteration == args.num_iterations - 1):
-                    # for the last iteration, use observational data
-                    data = sample_from_linear_gaussian(
-                        graph,
-                        args.num_samples,
-                        rng=rng
-                    )
-
-                elif (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
+                if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
                     current_intervened_nodes = np.asarray(
                         [tuple(args.int_nodes)[data_introduced]])
                     # currently single interventions only 
@@ -298,7 +290,6 @@ def main(args):
                         rng=rng
                     )
                     data_introduced += 1
-            
                 
             xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
             if (iteration + 1) % args.update_target_every == 0:
@@ -464,7 +455,7 @@ def main(args):
                             gt_adjacency = nx.to_numpy_array(graph, weight=None)
                             edge_cov = jax.vmap(jnp.linalg.inv, in_axes=-1, out_axes=-1)(edge_params.precision)
                             mean_shd = expected_shd(posterior_samples, gt_adjacency)
-                            posterior_theta = rng.random.multivariate_normal(key,
+                            posterior_theta = random.multivariate_normal(key,
                                                                              edge_params.mean,
                                                                              edge_cov, shape=(args.num_samples_posterior,args.num_variables))
                             log_like = -1*LL(posterior_samples, posterior_theta, data_test.to_numpy(), obs_noise)
