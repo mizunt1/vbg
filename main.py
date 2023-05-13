@@ -253,6 +253,7 @@ def main(args):
     data_introduced = 0
     first_run = True
     xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
+    current_intervened_nodes = np.asarray([])
     if args.full_cov:
         prior = NormalParameters(
             mean=jnp.zeros((len(graph),)), precision=jnp.eye((len(graph))))
