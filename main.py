@@ -284,10 +284,11 @@ def main(args):
             else:
                 current_intervened_nodes = np.asarray([])
                 if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
+                    rng_data = default_rng(args.seed + data_introduced)
                     data = sample_from_linear_gaussian(
                         graph,
                         args.num_samples,
-                        rng=rng
+                        rng=rng_data
                     )
                     data_introduced += 1
                 
