@@ -22,7 +22,7 @@ from gflownet_sl.scores import BDeuScore, BGeScore
 from gflownet_sl.gflownet import GFlowNet
 from gflownet_sl.replay_buffer import ReplayBuffer
 from gflownet_sl.utils.graph import sample_erdos_renyi_linear_gaussian, sample_erdos_renyi_linear_gaussian_3_nodes
-from gflownet_sl.utils.sampling import sample_from_discrete, sample_from_linear_gaussian_interventions, sample_from_linear_gaussian
+from gflownet_sl.utils.sampling import sample_from_discrete, sample_from_linear_gaussian_interventions, sample_from_linear_gaussian, sample_from_linear_gaussian_int_het
 from gflownet_sl.utils.jnp_utils import get_random_actions
 from gflownet_sl.utils.io import save
 from gflownet_sl.utils.wandb_utils import slurm_infos, table_from_dict, scatter_from_dicts, return_ordered_data
@@ -73,24 +73,30 @@ def main(args):
             rng=rng,
             block_small_theta=args.block_small_theta
         )
-        data = sample_from_linear_gaussian(
+        data_obs = sample_from_linear_gaussian(
             graph,
-            args.num_samples,
-            rng=rng
+            np.ceil(args.num_samples*0.25).astype(int),
+            rng=rng,
+            
+            
         )
         data_test = sample_from_linear_gaussian(
             graph,
             num_samples=args.num_samples,
             rng=rng_2
         )
+        data_int, int_mask = sample_from_linear_gaussian_int_het(
+            graph,
+            args.num_samples - np.ceil(args.num_samples*0.25).astype(int),
+            args.int_nodes[0],
+            rng=rng
+        )
+        frames = [data_obs, data_int]
+        data = pd.concat(frames)
+        int_mask_obs = np.full(data_obs.shape, False)
+        int_mask = np.concatenate((int_mask_obs, int_mask))
         data_test.to_csv(os.path.join(wandb.run.dir, 'data_test.csv'))
         wandb.save('data_test.csv', policy='now')
-
-                
-        #if args.benchmarking:
-        #    with open(file_paths["graph"], 'rb') as f:
-        #    graph = pickle.load(f)
-        #    data = pd.read_csv(file_paths["data"], index_col=0)
         plt.figure()
         plt.clf()
         annot = True
@@ -266,34 +272,7 @@ def main(args):
         num_vb_updates = 1
     with trange(args.num_iterations, desc='Training') as pbar:
         for iteration in pbar:
-            losses = np.zeros(args.num_vb_updates)           
-            if args.int_nodes != None:
-                if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds and iteration > args.obs_start:
-                    current_intervened_nodes = np.asarray(
-                        [tuple(args.int_nodes)[data_introduced]])
-                    # currently single interventions only 
-                    data = sample_from_linear_gaussian_interventions(
-                        graph,
-                        args.num_samples,
-                        current_intervened_nodes,
-                        rng=rng
-                    )
-                    data_introduced += 1
-            
-                else:
-                    pass
-            else:
-                current_intervened_nodes = np.asarray([])
-                if (iteration) % args.introduce_intervention == 0 and data_introduced < args.num_data_rounds:
-                    rng_data = default_rng(args.seed + data_introduced)
-                    data = sample_from_linear_gaussian(
-                        graph,
-                        args.num_samples,
-                        rng=rng_data
-                    )
-                    data_introduced += 1
-                
-            xtx = jnp.einsum('nk,nl->kl', data.to_numpy(), data.to_numpy())
+            losses = np.zeros(args.num_vb_updates)
             if (iteration + 1) % args.update_target_every == 0:
                 # Update the parameters of the target network
                 gflownet.set_target(params)
@@ -346,9 +325,8 @@ def main(args):
                 if args.full_cov:
                     new_edge_params = update_parameters_full(prior,
                                                              posterior_samples,
-                                                             data.to_numpy(),
-                                                             obs_noise, edge_params, 
-                                                             intervened_nodes=current_intervened_nodes)
+                                                             data_obs.to_numpy(),
+                                                             obs_noise, edge_params)
                 else:
                     edge_params = prior 
                     new_edge_params = update_parameters(edge_params, prior,
@@ -417,17 +395,18 @@ def main(args):
                 if args.vb:
                     if args.full_cov:
                         diff_marg_ll = jax.vmap(
-                            compute_delta_score_lingauss_full, in_axes=(0,0,None,None,None,
-                                                                        None, None,None,None))(
+                            compute_delta_score_lingauss_full, in_axes=(0,0,None, None,
+                                                                        None,None,
+                                                                        None, None,None))(
                                 samples['adjacency'][0],
                                 samples['actions'][0],
                                 edge_params,
                                 prior,
-                                xtx,
+                                data,
+                                int_mask,
                                 obs_noise,
                                 args.weight,
-                                args.use_erdos_prior,
-                                current_intervened_nodes)
+                                args.use_erdos_prior)
 
                     else:
                         diff_marg_ll = jax.vmap(

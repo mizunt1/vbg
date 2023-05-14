@@ -109,15 +109,37 @@ def compute_delta_score_lingauss(adjacency, action, params, prior, XTX, obs_nois
     else:
         return -0.5 * (term1 + term2 + term3) / (obs_noise ** 2)
 
-    
-
 def compute_delta_score_lingauss_full(adjacency, action, params,
-                                      prior, XTX, obs_noises,
-                                      weight, use_erdos_prior, intervention_nodes=None):
+                                      prior, data, int_mask, obs_noises,
+                                      weight, use_erdos_prior):
+    data_int_masked = data*~int_mask
+    def mask_pa(int_mask, one_adj):
+        """
+        int_mask: one row of int mask
+        one_adj: one adjacency matrix
+        """
+        num_variables = len(int_mask)
+        one_adj_plus = jnp.zeros((num_variables, num_variables + 1))
+        one_adj_plus = one_adj_plus.at[:, :num_variables].set(one_adj)
+        masked_node = jnp.nonzero(int_mask, size=1, fill_value=num_variables+1)
+        parents = one_adj_plus[:, masked_node]
+        # masked node, currently only supports one node at a time
+        return parents
     num_variables = params.mean.shape[0]
     source, target = divmod(action, num_variables)
     obs_noise = obs_noises[target]
     adjacency = adjacency.at[source, target].set(1)
+    pa_masked = jax.vmap(mask_pa, in_axes=(0,None), out_axes=0)(int_mask, adjacency)
+    pa_masked = jax.numpy.squeeze(pa_masked, axis=-1)
+    pa_masked = jax.numpy.squeeze(pa_masked, axis=-1)
+    data_pa_masked = data.to_numpy()*~pa_masked.astype(int)
+    
+
+    xtx_pa =jnp.einsum(
+        'nk,nl->kl', data_pa_masked, data_pa_masked)
+    xtx_pa_int =jnp.einsum(
+        'nk,nl->kl', data_int_masked.to_numpy(), data_pa_masked)
+
     precision = params.precision[:,:,target][:,:,0]
     # masking covariance terms for R(G)
     mask_cov = jnp.zeros((num_variables, num_variables))
@@ -128,15 +150,15 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     g_dash_cov = jnp.linalg.inv(precision)
     g_cov = jnp.linalg.inv(precision_masked)
     # difference of likelihood terms, term1, term2, term3
-    term1 = -2 * params.mean[source, target] * XTX[source, target]
+    term1 = -2 * params.mean[source, target] * xtx_pa_int[source, target]
     moment_2 = g_dash_cov[source, source] + params.mean[source, target] ** 2
-    term2 = XTX[source, source] * moment_2
+    term2 = xtx_pa[source, source] * moment_2
     moment_3 = adjacency[:, target] * (
         params.mean[source, target] * params.mean[:, target] + g_dash_cov[source].T)
     # subtracting k is not i term from dot product 
 
-    offset = 2*(params.mean[source, target]**2 + g_dash_cov[source, source])*XTX[source, source]
-    term3 = 2 * jnp.vdot(XTX[source], moment_3.squeeze(1)) - offset
+    offset = 2*(params.mean[source, target]**2 + g_dash_cov[source, source])*xtx_pa[source, source]
+    term3 = 2 * jnp.vdot(xtx_pa[source], moment_3.squeeze(1)) - offset
     g_dash_mean =  params.mean[:,target].squeeze(1) - prior.mean 
     # Masking mean term for R(G)
     mask = jnp.zeros((num_variables, num_variables))
@@ -154,12 +176,10 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
 
     parents_after = parents_before + 1
 
-    mask_likelihood = ~jax.numpy.isin(target, intervention_nodes)
     # if intervened node is the target node, likelihood part of delta score is zero.
     # KL terms are calculated from the current posterior of params
     
-    likelihood = mask_likelihood*(term1 + term2 + term3)
-        
+    likelihood = term1 + term2 + term3
     # Key after adding the new source node
     if use_erdos_prior:
         prior_score_before = erdos_renyi_prior(num_variables)[parents_before]
@@ -228,16 +248,4 @@ def update_parameters_full(prior, graphs, X, obs_noises, old_params, intervened_
         mean = jnp.linalg.solve(precision, b)
         return NormalParameters(mean=mean, precision=precision)
     new_params = jax.vmap(_update, in_axes=(-1, -1, 0), out_axes=-1)(graphs, X, obs_noises)
-    if len(intervened_nodes) != 0:
-        for node in intervened_nodes: 
-            # if node is an intervened node, dont update means for parents
-            if len(old_params.mean.shape) == 1:
-                # for first run, old params is prior so shape is different
-                mean = new_params.mean.at[:, node].set(old_params.mean)
-                precision = new_params.precision.at[:, :, node].set(old_params.precision)
-            else:
-                mean = new_params.mean.at[:, node].set(old_params.mean[:, node])
-                precision = new_params.precision.at[:, :, node].set(old_params.precision[:, :, node])
-            
-        new_params = NormalParameters(mean=mean, precision=precision)
     return new_params

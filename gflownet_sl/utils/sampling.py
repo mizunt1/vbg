@@ -50,7 +50,35 @@ def sample_from_linear_gaussian_interventions(model, num_samples, intervened_nod
         else:
             samples[node] = rng.normal(cpd.mean[0], np.sqrt(cpd.variance), size=(num_samples,))
         samples[node] = samples[node] - samples[node]*intervention_mask[:,node_idx] + intervention_array[:, node_idx]
-    return samples
+        return samples
+
+def sample_from_linear_gaussian_int_het(model, num_samples, num_interventions, rng=default_rng()):
+    """Sample from a linear-Gaussian model using ancestral sampling."""
+    num_nodes = len(list(model.nodes()))
+    intervention_array = np.zeros((num_samples, num_nodes))
+    intervention_range = (-2, 2)
+    node_names = list(model.nodes())
+    for i in range(num_samples):
+        intervened_nodes = rng.choice(num_nodes, size=(num_interventions), replace=False)
+        for j in intervened_nodes:
+            intervention_value = rng.uniform(low=intervention_range[0], high=intervention_range[1])
+            intervention_array[i, j] = intervention_value
+    intervention_mask = (intervention_array != 0)
+    if not isinstance(model, LinearGaussianBayesianNetwork):
+        raise ValueError('The model must be an instance '
+                         'of LinearGaussianBayesianNetwork')
+    samples = pd.DataFrame(columns=list(model.nodes()))
+    for node in nx.topological_sort(model):
+        node_idx = node_names.index(node)
+        cpd = model.get_cpds(node)
+        if cpd.evidence:
+            values = np.vstack([samples[parent] for parent in cpd.evidence])
+            mean = cpd.mean[0] + np.dot(cpd.mean[1:], values)
+            samples[node] = rng.normal(mean, np.sqrt(cpd.variance))
+        else:
+            samples[node] = rng.normal(cpd.mean[0], np.sqrt(cpd.variance), size=(num_samples,))
+        samples[node] = samples[node] - samples[node]*intervention_mask[:,node_idx] + intervention_array[:, node_idx]
+    return samples, intervention_mask
 
 def sample_from_discrete(model, num_samples, rng=default_rng(), **kwargs):
     """Sample from a discrete model using ancestral sampling."""
@@ -74,8 +102,6 @@ if __name__ == '__main__':
 
     graph = sample_erdos_renyi_linear_gaussian(5, p=0.5, nodes='ABCDE')
     print(graph.edges)
-    samples = sample_from_linear_gaussian(graph, 100)
-    print(samples.head())
-    samples = sample_from_linear_gaussian_interventions(graph, 100, 2)
+    samples = sample_from_linear_gaussian_int_het(graph, 10, 1)
     print(samples.head())
     

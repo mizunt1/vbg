@@ -96,6 +96,8 @@ def sample_erdos_renyi_linear_gaussian(
         rng=default_rng(),
         block_small_theta=False
     ):
+    if isinstance(obs_noise, float):
+        obs_noise = np.tile(obs_noise, num_variables)
     # Create graph structure
     graph = sample_erdos_renyi_graph(
         num_variables,
