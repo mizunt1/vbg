@@ -59,7 +59,7 @@ def main(args):
     env_kwargs = dict()
     annot = True
     if args.hetero_noise: 
-        obs_noise = random.uniform(key, minval=0.05, maxval=0.6, shape=(args.num_variables,))
+        obs_noise = random.uniform(key, minval=0.01, maxval=1.0, shape=(args.num_variables,))
     else:
         obs_noise = jnp.full(args.num_variables, args.true_obs_noise)
     if args.graph == 'erdos_renyi_lingauss':
