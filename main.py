@@ -73,29 +73,35 @@ def main(args):
             rng=rng,
             block_small_theta=args.block_small_theta
         )
-        data_obs = sample_from_linear_gaussian(
-            graph,
-            np.ceil(args.num_samples*0.25).astype(int),
-            rng=rng,
-            
-            
-        )
         data_test = sample_from_linear_gaussian(
             graph,
             num_samples=args.num_samples,
             rng=rng_2
         )
-        data_int, int_mask = sample_from_linear_gaussian_int_het(
-            graph,
-            args.num_samples - np.ceil(args.num_samples*0.25).astype(int),
-            args.int_nodes[0],
-            rng=rng
-        )
-        frames = [data_obs, data_int]
-        data = pd.concat(frames)
-        int_mask_obs = np.full(data_obs.shape, False)
-        int_mask = np.concatenate((int_mask_obs, int_mask))
-        data_test.to_csv(os.path.join(wandb.run.dir, 'data_test.csv'))
+        if args.int_nodes != None:
+            data_obs = sample_from_linear_gaussian(
+                graph,
+                np.ceil(args.num_samples*0.25).astype(int),
+                rng=rng)
+
+            data_int, int_mask = sample_from_linear_gaussian_int_het(
+                graph,
+                args.num_samples - np.ceil(args.num_samples*0.25).astype(int),
+                args.int_nodes[0],
+                rng=rng
+            )
+            frames = [data_obs, data_int]
+            data = pd.concat(frames)
+            int_mask_obs = np.full(data_obs.shape, False)
+            int_mask = np.concatenate((int_mask_obs, int_mask))
+            data_test.to_csv(os.path.join(wandb.run.dir, 'data_test.csv'))
+        else:
+            data_obs = sample_from_linear_gaussian(
+                graph,
+                args.num_samples,
+                rng=rng)
+            int_mask = np.full(data_obs.shape, False)
+            data = data_obs
         wandb.save('data_test.csv', policy='now')
         plt.figure()
         plt.clf()
