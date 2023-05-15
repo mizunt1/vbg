@@ -28,7 +28,7 @@ def sample_from_linear_gaussian_interventions(model, num_samples, intervened_nod
     """Sample from a linear-Gaussian model using ancestral sampling."""
     num_nodes = len(list(model.nodes()))
     intervention_array = np.zeros((num_samples, num_nodes))
-    intervention_range = (-2, 2)
+    intervention_range = (-5, 5)
     node_names = list(model.nodes())
     num_interventions = len(intervened_nodes)
     intervened_nodes = rng.choice(num_nodes, size=(num_interventions), replace=False)
