@@ -81,12 +81,12 @@ def main(args):
         if args.int_nodes != None:
             data_obs = sample_from_linear_gaussian(
                 graph,
-                np.ceil(args.num_samples*0.25).astype(int),
+                np.ceil(args.num_samples*args.prop_obs).astype(int),
                 rng=rng)
 
             data_int, int_mask = sample_from_linear_gaussian_int_het(
                 graph,
-                args.num_samples - np.ceil(args.num_samples*0.25).astype(int),
+                args.num_samples - np.ceil(args.num_samples*args.prop_obs).astype(int),
                 args.int_nodes[0],
                 rng=rng
             )
@@ -752,6 +752,9 @@ if __name__ == '__main__':
         
     parser.add_argument('--weight', type=float, default=0.5,
                         help='amount of weighting of KL term')
+    parser.add_argument('--prop_obs', type=float, default=0.25,
+                        help='proportion of obs data')
+        
     parser.add_argument('--hetero_noise', default=False, action='store_true',
                         help='whether to have heterogeneious noise')
     
