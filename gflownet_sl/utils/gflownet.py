@@ -134,11 +134,10 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     pa_masked = jax.numpy.squeeze(pa_masked, axis=-1)
     data_pa_masked = data.to_numpy()*~pa_masked.astype(int)
     
-
     xtx_pa =jnp.einsum(
         'nk,nl->kl', data_pa_masked, data_pa_masked)
     xtx_pa_int =jnp.einsum(
-        'nk,nl->kl', data_int_masked.to_numpy(), data_pa_masked)
+        'nk,nl->kl', data_pa_masked, data_int_masked.to_numpy())
 
     precision = params.precision[:,:,target][:,:,0]
     # masking covariance terms for R(G)
