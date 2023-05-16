@@ -40,7 +40,7 @@ from gflownet_sl.utils.graph_plot import graph_to_matrix
 NormalParameters = namedtuple('NormalParameters', ['mean', 'precision'])
 def main(args):
     wandb.init(
-        project='interventions_test',
+        project='int_exps',
         settings=wandb.Settings(start_method='fork')
     )
     wandb.config.update(args)
@@ -59,7 +59,7 @@ def main(args):
     env_kwargs = dict()
     annot = True
     if args.hetero_noise: 
-        obs_noise = random.uniform(key, minval=0.05, maxval=0.6, shape=(args.num_variables,))
+        obs_noise = random.uniform(key, minval=0.05, maxval=0.5, shape=(args.num_variables,))
     else:
         obs_noise = jnp.full(args.num_variables, args.true_obs_noise)
     if args.graph == 'erdos_renyi_lingauss':
