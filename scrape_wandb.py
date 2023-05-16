@@ -11,63 +11,63 @@ runs = api.runs(entity + "/" + project)
 
 def get_runs(method, num_var):
     return api.runs('mizunt/int_exps',
-        filters={'$and': [{
-            'state': {'$eq': 'finished'}
-            #'int_nodes': {'$eq': [1]},
-        }]}
-    )
+                    filters={
+                        "config.num_variables": 5})
 
 def combine_runs(methods, base_dir, nodes_5, num_var):
     for method in methods:
         project = method
         runs = get_runs(project, num_var)
 
-        edge_mse = defaultdict()
-        path_mse = defaultdict()
-        markov_mse = defaultdict()
-        shd = defaultdict()
-        auroc = defaultdict()
-        nll = defaultdict()
-        mse = defaultdict()
+        shd_obs = defaultdict()
+        auroc_obs = defaultdict()
+        nll_obs = defaultdict()
+        mse_obs = defaultdict()
+        shd_int = defaultdict()
+        auroc_int = defaultdict()
+        nll_int = defaultdict()
+        mse_int = defaultdict()
+
         for run_ in runs:
-            summary = run_.summary
             seed = str(json.loads(run_.json_config)['seed']['value'])
-            if nodes_5:
-                edge_mse[str(seed)] = summary['edge mse']
-                path_mse[str(seed)] = summary['path mse']
-                markov_mse[str(seed)] = summary['markov mse']
-            shd[str(seed)] = summary['metrics/shd/mean']
-            auroc[str(seed)] = summary['metrics/thresholds']['roc_auc']
-            nll[str(seed)] = summary['negative log like']
-            mse[str(seed)] = summary['mse of mean']
-        if nodes_5:
-            df = pd.DataFrame(
-                list(zip(edge_mse.values(),
-                         path_mse.values(),
-                         markov_mse.values(), shd.values(),
-                         auroc.values(), nll.values(),
-                         mse.values())),
-                columns=['edge mse', 'path mse', 'markov mse', 'shd', 'auroc', 'nll', 'mse theta'])
-        else:
-            df = pd.DataFrame(
-                list(zip(shd.values(),
-                         auroc.values(), nll.values(),
-                         mse.values())),
+            summary = run_.summary
+            if json.loads(run_.json_config)['int_nodes']['value'] == None:
+                shd_obs[str(seed)] = summary['metrics/shd/mean']
+                auroc_obs[str(seed)] = summary['metrics/thresholds']['roc_auc']
+                nll_obs[str(seed)] = summary['negative log like']
+                mse_obs[str(seed)] = summary['mse of mean']
+
+            else:
+                shd_int[str(seed)] = summary['metrics/shd/mean']
+                auroc_int[str(seed)] = summary['metrics/thresholds']['roc_auc']
+                nll_int[str(seed)] = summary['negative log like']
+                mse_int[str(seed)] = summary['mse of mean']
+
+        df_obs = pd.DataFrame(
+                list(zip(shd_obs.values(),
+                         auroc_obs.values(), nll_obs.values(),
+                         mse_obs.values())),
                 columns=['shd', 'auroc', 'nll', 'mse theta'])
-        df.to_csv(base_dir +'/' + project + '.csv')
-        return df
         
+        df_int = pd.DataFrame(
+            list(zip(shd_int.values(),
+                     auroc_int.values(), nll_int.values(),
+                     mse_int.values())),
+            columns=['shd', 'auroc', 'nll', 'mse theta'])
+
+        df_int.to_csv(base_dir +'/' + project +  'int.csv')
+        df_obs.to_csv(base_dir +'/' + project + 'obs.csv')
+        return df_obs, df_int
 
 if __name__ == '__main__':
     nodes_5 = True
     num_var = 5
     if nodes_5:
-        base_dir = '/network/scratch/m/mizu.nishikawa-toomey/sl/n20'
+        base_dir = 'int_exps/'
         projects = ['int_exps']
     else:
         methods = ['ges_arxiv2_n5', 'bcd_arxiv2', 'vbg_arxiv3_n5', 'dibs_plus_arxiv2_n5', 'pc_arxiv2_n5', 'dibs_arxiv2_n5', 'gibs_arxiv2_n5',  'mh_arxiv2_n5', 'vbg_arxiv2_w_0.5']
         methods = ['mh_arxiv2_n5_burn', 'mh_arxiv2_n20_theta']
 
-    df = combine_runs(projects, base_dir, nodes_5, num_var)
-    import pdb
-    pdb.set_trace()
+    df_obs, df_int = combine_runs(projects, base_dir, nodes_5, num_var)
+    
