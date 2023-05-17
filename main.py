@@ -40,7 +40,7 @@ from gflownet_sl.utils.graph_plot import graph_to_matrix
 NormalParameters = namedtuple('NormalParameters', ['mean', 'precision'])
 def main(args):
     wandb.init(
-        project='int_exps',
+        project='testing_int',
         settings=wandb.Settings(start_method='fork')
     )
     wandb.config.update(args)
@@ -102,6 +102,7 @@ def main(args):
                 rng=rng)
             int_mask = np.full(data_obs.shape, False)
             data = data_obs
+
         wandb.save('data_test.csv', policy='now')
         plt.figure()
         plt.clf()
@@ -396,19 +397,23 @@ def main(args):
                     )
                     wandb.save('debug.npz', policy='now')
                     raise
-
+                int_loc = np.full(int_mask.shape[0], -2)
+                loc, value = jnp.where(int_mask==True)
+                for i,j in zip(loc, value):
+                    int_loc[i] = j
                 samples, subsq_mask = replay.sample(batch_size=args.batch_size, rng=rng)
                 if args.vb:
                     if args.full_cov:
                         diff_marg_ll = jax.vmap(
-                            compute_delta_score_lingauss_full, in_axes=(0,0,None, None,
+                            compute_delta_score_lingauss_full, in_axes=(0,0,None, None, None,
                                                                         None,None,
                                                                         None, None,None))(
                                 samples['adjacency'][0],
                                 samples['actions'][0],
+                                int_loc,
                                 edge_params,
                                 prior,
-                                data,
+                                data.to_numpy(),
                                 int_mask,
                                 obs_noise,
                                 args.weight,

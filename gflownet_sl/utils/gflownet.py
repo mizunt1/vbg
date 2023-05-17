@@ -109,10 +109,9 @@ def compute_delta_score_lingauss(adjacency, action, params, prior, XTX, obs_nois
     else:
         return -0.5 * (term1 + term2 + term3) / (obs_noise ** 2)
 
-def compute_delta_score_lingauss_full(adjacency, action, params,
+def compute_delta_score_lingauss_full(adjacency, action, int_loc, params,
                                       prior, data, int_mask, obs_noises,
                                       weight, use_erdos_prior):
-    data_int_masked = data*~int_mask
     def mask_pa(int_mask, one_adj):
         """
         int_mask: one row of int mask
@@ -127,18 +126,17 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
         return parents
     num_variables = params.mean.shape[0]
     source, target = divmod(action, num_variables)
+    is_equal = (target == int_loc)
     obs_noise = obs_noises[target]
     adjacency = adjacency.at[source, target].set(1)
     pa_masked = jax.vmap(mask_pa, in_axes=(0,None), out_axes=0)(int_mask, adjacency)
     pa_masked = jax.numpy.squeeze(pa_masked, axis=-1)
-    pa_masked = jax.numpy.squeeze(pa_masked, axis=-1).astype(bool)
-    data = data.to_numpy()
-    data_pa_masked = data*~pa_masked
-    
-    xtx_pa =jnp.einsum(
-        'nk,nl->kl', data_pa_masked, data_pa_masked)
-    xtx_pa_int =jnp.einsum(
-        'nk,nl->kl', data_pa_masked, data_int_masked.to_numpy())
+    pa_masked = jax.numpy.squeeze(pa_masked, axis=-1).astype(bool)    
+    data_masked = (data*~int_mask)*~pa_masked
+    data = data - data*is_equal + data_masked*is_equal 
+
+    xtx =jnp.einsum(
+        'nk,nl->kl', data, data)
     precision = params.precision[:,:,target][:,:,0]
     # masking covariance terms for R(G)
     mask_cov = jnp.zeros((num_variables, num_variables))
@@ -149,15 +147,15 @@ def compute_delta_score_lingauss_full(adjacency, action, params,
     g_dash_cov = jnp.linalg.inv(precision)
     g_cov = jnp.linalg.inv(precision_masked)
     # difference of likelihood terms, term1, term2, term3
-    term1 = -2 * params.mean[source, target] * xtx_pa_int[source, target]
+    term1 = -2 * params.mean[source, target] * xtx[source, target]
     moment_2 = g_dash_cov[source, source] + params.mean[source, target] ** 2
-    term2 = xtx_pa[source, source] * moment_2
+    term2 = xtx[source, source] * moment_2
     moment_3 = adjacency[:, target] * (
         params.mean[source, target] * params.mean[:, target] + g_dash_cov[source].T)
     # subtracting k is not i term from dot product 
 
-    offset = 2*(params.mean[source, target]**2 + g_dash_cov[source, source])*xtx_pa[source, source]
-    term3 = 2 * jnp.vdot(xtx_pa[source], moment_3.squeeze(1)) - offset
+    offset = 2*(params.mean[source, target]**2 + g_dash_cov[source, source])*xtx[source, source]
+    term3 = 2 * jnp.vdot(xtx[source], moment_3.squeeze(1)) - offset
     g_dash_mean =  params.mean[:,target].squeeze(1) - prior.mean 
     # Masking mean term for R(G)
     mask = jnp.zeros((num_variables, num_variables))
