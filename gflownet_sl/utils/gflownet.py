@@ -126,17 +126,18 @@ def compute_delta_score_lingauss_full(adjacency, action, int_loc, params,
         return parents
     num_variables = params.mean.shape[0]
     source, target = divmod(action, num_variables)
-    is_equal = (target == int_loc)
+    is_equal = jnp.expand_dims(target == int_loc, 1)
+
     obs_noise = obs_noises[target]
     adjacency = adjacency.at[source, target].set(1)
     pa_masked = jax.vmap(mask_pa, in_axes=(0,None), out_axes=0)(int_mask, adjacency)
     pa_masked = jax.numpy.squeeze(pa_masked, axis=-1)
     pa_masked = jax.numpy.squeeze(pa_masked, axis=-1).astype(bool)    
+    
     data_masked = (data*~int_mask)*~pa_masked
-    data = data - data*is_equal + data_masked*is_equal 
-
+    data2 = data - data*is_equal + data_masked*is_equal 
     xtx =jnp.einsum(
-        'nk,nl->kl', data, data)
+        'nk,nl->kl', data2, data2)
     precision = params.precision[:,:,target][:,:,0]
     # masking covariance terms for R(G)
     mask_cov = jnp.zeros((num_variables, num_variables))
