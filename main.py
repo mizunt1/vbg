@@ -59,6 +59,7 @@ def main(args):
     env_kwargs = dict()
     annot = True
     if args.hetero_noise: 
+        obs_noise = jnp.asarray([0.05, 0.1, 0.3, 0.7, 1.0])
         obs_noise = random.uniform(key, minval=0.05, maxval=0.5, shape=(args.num_variables,))
     else:
         obs_noise = jnp.full(args.num_variables, args.true_obs_noise)
